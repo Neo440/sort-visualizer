@@ -33,7 +33,7 @@ export default function Bar() {
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full"
+          className="hover:bg-transparent"
           asChild
         >
           <Link href="#" aria-label="GitHub repository">
