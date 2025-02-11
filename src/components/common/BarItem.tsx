@@ -16,10 +16,10 @@ interface BarItemProps {
 
 const BarItem = memo(({ 
   value,
-  maxValue,
-  originY,
-  targetY,
-  barHeight,
+  maxValue = 1,
+  originY = 0,
+  targetY = 0,
+  barHeight = 40,
   isSwapping,
   isComparing,
   shouldReduceMotion
