@@ -6,7 +6,7 @@ import Image from 'next/image';
 
 export default function Bar() {
   return (
-    <div className="w-[5%] flex flex-col justify-between border-2 border-gray-200 rounded-lg bg-white p-2">
+    <div className="w-[5%] flex flex-col shadow-lg justify-between border-2 border-gray-200 rounded-lg bg-white p-2">
       <div className="flex-none h-16 w-full border-b-2 border-gray-100 flex items-center justify-center">
         <Link 
           href="https://www.bitscollege.edu.et/" 

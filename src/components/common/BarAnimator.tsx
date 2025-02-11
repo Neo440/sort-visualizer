@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import React from 'react';
+import BarItem from './BarItem';
+import { ShuffleType } from '@/components/layout/Sections/ControlBoard';
 
 interface BarData {
   id: string;
   value: number;
-  originalIndex: number;
 }
 
 interface BarAnimatorProps {
@@ -12,26 +14,33 @@ interface BarAnimatorProps {
   speed: number;
 }
 
-const Chevron = ({ visible }: { visible: boolean }) => (
-  <svg
-    className={`absolute left-0 -translate-x-3/4 -ml-2 top-1/2 -translate-y-1/2 w-4 h-4 transition-opacity duration-300 ${
-      visible ? 'opacity-100' : 'opacity-0'
-    }`}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-  </svg>
-);
+export interface BarAnimatorHandles {
+  shuffle: (type: ShuffleType) => Promise<void>;
+  bubbleSort: () => Promise<void>;
+  abort: () => void;
+  getCurrentData: () => number[];
+}
 
-const BarAnimator = forwardRef(({ data, speed }: BarAnimatorProps, ref) => {
+interface Transition {
+  index: number;
+  newIndex: number;
+  value: number;
+  targetY: number;
+}
+
+const areArraysEqual = (a: number[], b: number[]) => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+};
+
+const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, speed }: BarAnimatorProps, ref) => {
   const [currentData, setCurrentData] = useState<BarData[]>(() =>
     data.map((value, index) => ({
       id: `bar-${index}-${value}`,
       value,
-      originalIndex: index,
     }))
   );
 
@@ -39,25 +48,24 @@ const BarAnimator = forwardRef(({ data, speed }: BarAnimatorProps, ref) => {
   const [isSorting, setIsSorting] = useState(false);
   const [currentIndices, setCurrentIndices] = useState<number[]>([]);
   const isMounted = useRef(true);
+  const currentDataRef = useRef(currentData);
+  const prevDataRef = useRef<BarData[]>([]);
 
   useEffect(() => {
-    if (JSON.stringify(data) === JSON.stringify(currentData.map(d => d.value))) return;
+    currentDataRef.current = currentData;
+  }, [currentData]);
+
+  useEffect(() => {
+    if (areArraysEqual(data, currentDataRef.current.map(d => d.value))) return;
     
     setCurrentData(prev => {
-      const existingBars = new Map<string, BarData>();
-      prev.forEach(bar => {
-        const key = `${bar.originalIndex}-${bar.value}`;
-        existingBars.set(key, bar);
-      });
-
-      return data.map((value, index) => {
-        const key = `${index}-${value}`;
-        return existingBars.get(key) || {
+      const existingMap = new Map(prev.map(bar => [bar.id, bar]));
+      return data.map((value, index) => 
+        existingMap.get(`bar-${index}-${value}`) || {
           id: `bar-${index}-${value}`,
           value,
-          originalIndex: index
-        };
-      });
+        }
+      );
     });
   }, [data]);
 
@@ -74,42 +82,50 @@ const BarAnimator = forwardRef(({ data, speed }: BarAnimatorProps, ref) => {
     index * (barHeight + 8), [barHeight]
   );
 
-  const bubbleSort = async () => {
-    const currentSpeed = speed;
-    setIsSorting(true);
-    let dataCopy = [...currentData];
-    let n = dataCopy.length;
-    let swapped: boolean;
+  const bubbleSort = useCallback(async () => {
+    isMounted.current = true;
+    console.log('BubbleSort implementation called');
+    try {
+      const currentSpeed = speed;
+      setIsSorting(true);
+      let dataCopy = [...currentData];
+      let n = dataCopy.length;
+      let swapped: boolean;
 
-    // Store original indexes for animation reference
-    const originalIndexMap = new Map(dataCopy.map((bar, index) => [bar.id, index]));
+      do {
+        swapped = false;
+        for (let i = 0; i < n - 1; i++) {
+          if (!isMounted.current) return;
+          
+          // Store previous positions before swap
+          prevDataRef.current = [...dataCopy];
+          
+          setCurrentIndices([i, i + 1]);
+          await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
 
-    do {
-      swapped = false;
-      for (let i = 0; i < n - 1; i++) {
-        if (!isMounted.current) return; // Prevent state updates if unmounted
-        
-        setCurrentIndices([i, i + 1]);
-        await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
+          if (dataCopy[i].value > dataCopy[i + 1].value) {
+            setSwappingIds([dataCopy[i].id, dataCopy[i + 1].id]);
+            
+            // Perform swap
+            [dataCopy[i], dataCopy[i + 1]] = [dataCopy[i + 1], dataCopy[i]];
+            swapped = true;
 
-        if (dataCopy[i].value > dataCopy[i + 1].value) {
-          // Animate the swap
-          setSwappingIds([dataCopy[i].id, dataCopy[i + 1].id]);
-          [dataCopy[i], dataCopy[i + 1]] = [dataCopy[i + 1], dataCopy[i]];
-          swapped = true;
-
-          // Update state with new positions
-          setCurrentData([...dataCopy]);
-          await new Promise(resolve => setTimeout(resolve, 1000 / currentSpeed));
-          setSwappingIds([]);
+            // Update state and wait for animation
+            setCurrentData([...dataCopy]);
+            await new Promise(resolve => setTimeout(resolve, 1000 / currentSpeed));
+            
+            setSwappingIds([]);
+          }
         }
+        n--;
+      } while (swapped && isMounted.current);
+    } finally {
+      if (isMounted.current) {
+        setIsSorting(false);
+        setCurrentIndices([]);
       }
-      n--;
-    } while (swapped && isMounted.current);
-
-    setIsSorting(false);
-    setCurrentIndices([]);
-  };
+    }
+  }, [speed, currentData]);
 
   useEffect(() => {
     return () => {
@@ -117,72 +133,134 @@ const BarAnimator = forwardRef(({ data, speed }: BarAnimatorProps, ref) => {
     };
   }, []);
 
-  // Expose shuffle function via ref
+  // Optimized shuffle function
   useImperativeHandle(ref, () => ({
-    shuffle: async () => {
-      let iterations = currentData.length * 2;
-      let currentDataCopy = [...currentData];
-      
-      for (let i = 0; i < iterations; i++) {
-        const index1 = Math.floor(Math.random() * currentDataCopy.length);
-        const index2 = Math.floor(Math.random() * currentDataCopy.length);
-        
-        if (index1 === index2) continue;
+    shuffle: async (type: ShuffleType) => {
+      const newValues = generateShuffledArray(currentDataRef.current.length, type);
+      await animateShuffleTransition(newValues);
+    },
+    bubbleSort,
+    abort: () => {
+      isMounted.current = false;
+      setCurrentIndices([]);
+      setSwappingIds([]);
+    },
+    getCurrentData: () => currentDataRef.current.map(d => d.value)
+  }), [bubbleSort]);
 
-        // Perform swap
-        [currentDataCopy[index1], currentDataCopy[index2]] = [
-          currentDataCopy[index2], 
-          currentDataCopy[index1]
-        ];
+  // Add reduced motion support
+  const shouldReduceMotion = useReducedMotion();
+
+  const generateShuffledArray = (length: number, type: ShuffleType): number[] => {
+    // Implement the same logic as in index.tsx's generateShuffledArray
+    switch (type) {
+      case 'random':
+        return Array.from({ length }, (_, i) => i + 1)
+          .sort(() => Math.random() - 0.5);
+      case 'reversed':
+        return Array.from({ length }, (_, i) => i + 1).reverse();
+      case 'nearly-sorted':
+        const arr = Array.from({ length }, (_, i) => i + 1);
+        for (let i = 0; i < 3; i++) {
+          const index = Math.floor(Math.random() * (length - 1));
+          [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+        }
+        return arr;
+      case 'few-unique':
+        const uniqueValues = [1, 2, 3, 4];
+        return Array.from({ length }, () => 
+          uniqueValues[Math.floor(Math.random() * uniqueValues.length)]
+        );
+      default:
+        return Array.from({ length }, (_, i) => i + 1);
+    }
+  };
+
+  const calculateTransitions = (current: number[], next: number[]): Transition[] => {
+    const transitions: Transition[] = [];
+    const tempArray = [...current];
+    
+    // Create a map of value positions in the new array
+    const valuePositions = new Map<number, number[]>();
+    next.forEach((value, index) => {
+      if (!valuePositions.has(value)) {
+        valuePositions.set(value, []);
+      }
+      valuePositions.get(value)?.push(index);
+    });
+
+    // Calculate moves needed to reach target state
+    for (let i = 0; i < next.length; i++) {
+      const targetValue = next[i];
+      const sourceIndex = tempArray.findIndex((val, idx) => 
+        val === targetValue && !transitions.some(t => t.index === idx)
+      );
+
+      if (sourceIndex !== -1 && sourceIndex !== i) {
+        transitions.push({
+          index: sourceIndex,
+          newIndex: i,
+          value: targetValue,
+          targetY: calculatePosition(i)
+        });
         
-        setCurrentData([...currentDataCopy]);
-        await new Promise(resolve => setTimeout(resolve, 300 / 7));
+        // Swap in temp array to track moved elements
+        [tempArray[sourceIndex], tempArray[i]] = [tempArray[i], tempArray[sourceIndex]];
       }
     }
-  }), [currentData]);
+
+    return transitions;
+  };
+
+  const animateShuffleTransition = async (newValues: number[]) => {
+    const currentValues = currentDataRef.current.map(d => d.value);
+    if (areArraysEqual(currentValues, newValues)) return;
+
+    const transitions = calculateTransitions(currentValues, newValues);
+    
+    // Animate each transition step
+    for (const transition of transitions as Transition[]) {
+      if (!isMounted.current) break;
+      
+      setCurrentData(prev => {
+        const newData = [...prev];
+        // Swap elements
+        [newData[transition.index], newData[transition.newIndex]] = 
+          [newData[transition.newIndex], newData[transition.index]];
+        return newData;
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000 / speed));
+    }
+
+    // Final alignment
+    setCurrentData(newValues.map((value, index) => ({
+      id: `bar-${index}-${value}`,
+      value
+    })));
+  };
 
   return (
-    <div className="flex flex-col gap-4  bg-gray-50">
-      <div className="w-64 h-96 pl-10 pr-3 rounded-lg relative">
-        {currentData.map(({ id, value, originalIndex }, index) => {
-          const targetY = calculatePosition(index);
-          const originY = calculatePosition(originalIndex);
-
+    <div className=" w-full relative">
+        {currentData.map(({ id, value }, index) => {
+          const previousIndex = prevDataRef.current.findIndex(bar => bar.id === id);
+          const originY = previousIndex >= 0 ? calculatePosition(previousIndex) : calculatePosition(index);
+          
           return (
-            <motion.div
+            <BarItem
               key={id}
-              initial={{ y: originY, opacity: 0, width: 0, height: 0 }}
-              animate={{
-                y: targetY,
-                width: `${(value / maxValue) * 100}%`,
-                height: barHeight,
-                opacity: 1
-              }}
-              transition={{
-                y: { type: 'spring', stiffness: 300, damping: 30 },
-                width: { duration: 0.3 },
-                height: { duration: 0.3 },
-                opacity: { duration: 0.2 }
-              }}
-              className={`absolute left-6 transition-colors origin-left rounded-r ${
-                swappingIds.includes(id) ? 'bg-black' : 
-                currentIndices.includes(index) ? 'bg-blue-400' : 'bg-gray-300'
-              }`}
-            >
-              <Chevron visible={swappingIds.includes(id)} />
-            </motion.div>
+              id={id}
+              value={value}
+              maxValue={maxValue}
+              originY={originY}
+              targetY={calculatePosition(index)}
+              barHeight={barHeight}
+              isSwapping={swappingIds.includes(id)}
+              isComparing={currentIndices.includes(index)}
+              shouldReduceMotion={shouldReduceMotion ?? false}
+            />
           );
         })}
-      </div>
-      <button
-        onClick={bubbleSort}
-        disabled={isSorting}
-        className={`px-4 py-2 text-white rounded transition-colors self-center ${
-          isSorting ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'
-        }`}
-      >
-        {isSorting ? 'Sorting...' : 'Start Bubble Sort'}
-      </button>
     </div>
   );
 });
