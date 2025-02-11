@@ -98,7 +98,9 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
       do {
         swapped = false;
         for (let i = 0; i < n - 1; i++) {
-          if (!isMounted.current) return;
+          if (!isMounted.current) {
+            throw new Error('Sorting aborted');
+          }
           
           // Store previous positions before swap
           prevDataRef.current = [...dataCopy];
@@ -122,6 +124,11 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
         }
         n--;
       } while (swapped && isMounted.current);
+
+      // Only mark as sorted if completed naturally
+      if (isMounted.current) {
+        setCurrentData([...dataCopy]);
+      }
     } finally {
       if (isMounted.current) {
         setIsSorting(false);
