@@ -8,7 +8,7 @@ import { generateShuffledArray } from '@/lib/arrayUtils';
 type ShuffleType = "random" | "reversed" | "nearly-sorted" | "few-unique";
 
 export default function Home() {
-  const [numElements, setNumElements] = useState(12);
+  const [numElements, setNumElements] = useState(20);
   const [speed, setSpeed] = useState(5);
   const barAnimatorRef = useRef<BarAnimatorHandles>(null);
   const [status, setStatus] = useState<
@@ -36,10 +36,14 @@ export default function Home() {
     try {
       if (barAnimatorRef.current) {
         await barAnimatorRef.current.bubbleSort();
+        const finalData = barAnimatorRef.current.getCurrentData();
+        setSampleData(finalData);
         setStatus("sorted");
+        setTimeout(() => setStatus("idle"), 4000);
       }
     } catch (error) {
       setStatus("aborted");
+      setTimeout(() => setStatus("idle"), 4000);
     }
   };
 
@@ -47,6 +51,7 @@ export default function Home() {
     if (barAnimatorRef.current) {
       barAnimatorRef.current.abort();
       setStatus("aborted");
+      setTimeout(() => setStatus("idle"), 4000);
     }
   };
 
