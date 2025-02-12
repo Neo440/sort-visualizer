@@ -13,11 +13,13 @@ interface BarData {
 interface BarAnimatorProps {
   data: number[];
   speed: number;
+  selectedAlgorithm: 'bubbleSort' | 'selectionSort' | 'insertionSort';
 }
 
 export interface BarAnimatorHandles {
   shuffle: (type: ShuffleType) => Promise<void>;
   bubbleSort: () => Promise<void>;
+  selectionSort: () => Promise<void>;
   abort: () => void;
   getCurrentData: () => number[];
 }
@@ -37,7 +39,11 @@ const areArraysEqual = (a: number[], b: number[]) => {
   return true;
 };
 
-const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, speed }: BarAnimatorProps, ref) => {
+const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ 
+  data, 
+  speed,
+  selectedAlgorithm
+}: BarAnimatorProps, ref) => {
   const [currentData, setCurrentData] = useState<BarData[]>(() =>
     data.map((value, index) => ({
       id: `bar-${index}-${value}`,
@@ -102,9 +108,7 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
             throw new Error('Sorting aborted');
           }
           
-          // Store previous positions before swap
-          prevDataRef.current = [...dataCopy];
-          
+          // Set both indices as compared pair
           setCurrentIndices([i, i + 1]);
           await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
 
@@ -128,6 +132,74 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
       // Only mark as sorted if completed naturally
       if (isMounted.current) {
         setCurrentData([...dataCopy]);
+      }
+    } finally {
+      if (isMounted.current) {
+        setIsSorting(false);
+        setCurrentIndices([]);
+      }
+      setIsAnimating(false);
+    }
+  }, [speed, currentData]);
+
+  const selectionSort = useCallback(async () => {
+    setIsAnimating(true);
+    try {
+      isMounted.current = true;
+      const currentSpeed = speed;
+      setIsSorting(true);
+      let dataCopy = [...currentData];
+      const n = dataCopy.length;
+
+      for (let i = 0; i < n - 1; i++) {
+        if (!isMounted.current) throw new Error('Sorting aborted');
+        
+        let minIndex = i;
+        // Highlight initial position and minimum candidate
+        setCurrentIndices([i, minIndex]);
+        await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
+
+        for (let j = i + 1; j < n; j++) {
+          if (!isMounted.current) break; // Check abort during inner loop
+          
+          // Highlight comparison indices and current minimum
+          setCurrentIndices([i, j, minIndex]);
+          await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
+
+          if (dataCopy[j].value < dataCopy[minIndex].value) {
+            minIndex = j;
+            // Visual feedback for new minimum
+            setCurrentIndices([i, j, minIndex]);
+            await new Promise(resolve => setTimeout(resolve, 300 / currentSpeed));
+          }
+        }
+
+        if (!isMounted.current) break; // Final abort check before swap
+
+        if (minIndex !== i) {
+          // Highlight swap targets
+          setSwappingIds([dataCopy[i].id, dataCopy[minIndex].id]);
+          setCurrentIndices([i, minIndex]);
+          
+          // Pre-swap delay
+          await new Promise(resolve => setTimeout(resolve, 700 / currentSpeed));
+          
+          // Perform swap
+          [dataCopy[i], dataCopy[minIndex]] = [dataCopy[minIndex], dataCopy[i]];
+          setCurrentData([...dataCopy]);
+          
+          // Post-swap delay
+          await new Promise(resolve => setTimeout(resolve, 1200 / currentSpeed));
+          
+          // Clear highlights
+          setSwappingIds([]);
+          setCurrentIndices([]);
+        }
+      }
+
+      if (isMounted.current) {
+        setCurrentData([...dataCopy]);
+        setCurrentIndices(Array.from({length: n}, (_, i) => i)); // Highlight all when sorted
       }
     } finally {
       if (isMounted.current) {
@@ -178,13 +250,14 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
       }
     },
     bubbleSort,
+    selectionSort,
     abort: () => {
       isMounted.current = false;
       setCurrentIndices([]);
       setSwappingIds([]);
     },
     getCurrentData: () => currentDataRef.current.map(d => d.value)
-  }), [bubbleSort]);
+  }), [bubbleSort, selectionSort]);
 
   // Add reduced motion support
   const shouldReduceMotion = useReducedMotion();
@@ -288,6 +361,10 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
   return (
     <div className=" w-full relative">
         {currentData.map(({ id, value }, index) => {
+          const isCurrent = currentIndices[0] === index;
+          const isComparing = currentIndices[1] === index;
+          const isMin = currentIndices[2] === index;
+
           const previousIndex = prevDataRef.current.findIndex(bar => bar.id === id);
           const originY = previousIndex >= 0 ? calculatePosition(previousIndex) : calculatePosition(index);
           
@@ -301,8 +378,13 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({ data, sp
               targetY={calculatePosition(index)}
               barHeight={barHeight}
               isSwapping={swappingIds.includes(id)}
-              isComparing={currentIndices.includes(index)}
+              isCurrent={isCurrent}
+              isComparing={isComparing}
+              isMin={isMin}
               shouldReduceMotion={shouldReduceMotion ?? false}
+              currentIndices={currentIndices}
+              index={index}
+              algorithm={selectedAlgorithm}
             />
           );
         })}

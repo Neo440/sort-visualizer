@@ -9,9 +9,14 @@ interface BarItemProps {
   originY: number;
   targetY: number;
   barHeight: number;
-  isSwapping: boolean;
-  isComparing: boolean;
+  isSwapping?: boolean;
+  isCurrent?: boolean;
+  isComparing?: boolean;
+  isMin?: boolean;
   shouldReduceMotion: boolean;
+  currentIndices: number[];
+  index: number;
+  algorithm: 'bubbleSort' | 'selectionSort' | 'insertionSort';
 }
 
 const BarItem = memo(({ 
@@ -21,8 +26,13 @@ const BarItem = memo(({
   targetY = 0,
   barHeight = 40,
   isSwapping,
+  isCurrent,
   isComparing,
-  shouldReduceMotion
+  isMin,
+  shouldReduceMotion,
+  currentIndices,
+  index,
+  algorithm
 }: BarItemProps) => (
   <motion.div
     initial={{ y: originY, opacity: 0, width: 0, height: 0 }}
@@ -39,12 +49,16 @@ const BarItem = memo(({
       opacity: { duration: 0.2 }
     }}
     className={`absolute flex justify-center transition-colors origin-left rounded-r ${
-      isSwapping ? 'bg-green-400' :
-      isComparing ? 'bg-black' : 'bg-gray-200' 
+      isSwapping ? 'bg-emerald-400' :
+      algorithm === 'selectionSort' 
+        ? (isCurrent ? 'bg-indigo-400' : 
+           isMin ? 'bg-amber-400' : 
+           isComparing ? 'bg-rose-400' : 'bg-gray-200')
+        : (currentIndices.includes(index) ? 'bg-rose-400' : 'bg-gray-200')
     }`}
   >
     <Chevron visible={isSwapping} />
   </motion.div>
 ));
 
-export default BarItem; 
+export default BarItem;

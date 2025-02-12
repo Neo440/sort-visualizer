@@ -16,6 +16,14 @@ interface DashboardLayoutProps {
     onShuffle: (type: ShuffleType) => Promise<void>;
     onSort: () => Promise<void>;
     onAbort: () => void;
+    codeSnippets: {
+      bubbleSort: string;
+      selectionSort: string;
+      insertionSort: string;
+    };
+    currentStep?: number;
+    selectedAlgorithm: keyof DashboardLayoutProps['controlProps']['codeSnippets'];
+    onAlgorithmChange: (algorithm: keyof DashboardLayoutProps['controlProps']['codeSnippets']) => void;
   };
 }
 
@@ -23,9 +31,16 @@ export default function DashboardLayout({ children, controlProps }: DashboardLay
   return (
     <div className="min-h-screen w-full bg-background">
       <div className="flex flex-nowrap h-screen w-full gap-4 p-4">
-        <CodeSection/>
+        <CodeSection 
+          codeSnippets={controlProps.codeSnippets}
+          currentLine={controlProps.currentStep}
+          selectedAlgorithm={controlProps.selectedAlgorithm}
+          onAlgorithmChange={controlProps.onAlgorithmChange}
+        />
         <Bar />
-        <VisualizerSection>{children}</VisualizerSection>
+        <VisualizerSection selectedAlgorithm={controlProps.selectedAlgorithm}>
+          {children}
+        </VisualizerSection>
         <ControlBoard {...controlProps} />
       </div>
     </div>

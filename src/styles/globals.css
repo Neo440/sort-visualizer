@@ -67,6 +67,8 @@
   --chart-4: hsl(43 74% 66%);
   --chart-5: hsl(27 87% 67%);
   --radius: 0.6rem;
+  --code-bg: hsl(0 0% 98%);
+  --code-border: hsl(0 0% 89.8%);
 }
 
 /*
@@ -98,6 +100,8 @@
   --chart-3: hsl(30 80% 55%);
   --chart-4: hsl(280 65% 60%);
   --chart-5: hsl(340 75% 55%);
+  --code-bg: hsl(240 4% 16%);
+  --code-border: hsl(240 5% 26%);
 }
 
 /*
