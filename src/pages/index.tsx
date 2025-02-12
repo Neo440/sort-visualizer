@@ -17,7 +17,9 @@ export default function Home() {
   const [sampleData, setSampleData] = useState<number[]>(() => 
     generateShuffledArray(numElements, 'random')
   );
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<keyof typeof sortingAlgorithmsCode>('bubbleSort');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<
+    'bubbleSort' | 'selectionSort' | 'insertionSort' | 'quickSort'
+  >('bubbleSort');
 
   useEffect(() => {
     setSampleData(generateShuffledArray(numElements, 'random'));
@@ -36,18 +38,26 @@ export default function Home() {
     setStatus("sorting");
     try {
       if (barAnimatorRef.current) {
-        if (selectedAlgorithm === 'bubbleSort') {
-          await barAnimatorRef.current.bubbleSort();
-        } else if (selectedAlgorithm === 'selectionSort') {
-          await barAnimatorRef.current.selectionSort();
-        }
+        // Reset abort state before starting new sort
+        barAnimatorRef.current.abort(); 
+        
+        // Store reference to current sort promise
+        const sortPromise = barAnimatorRef.current[selectedAlgorithm]();
+        await sortPromise;
+        
+        // Only update if sort completed successfully
         const finalData = barAnimatorRef.current.getCurrentData();
         setSampleData(finalData);
         setStatus("sorted");
         setTimeout(() => setStatus("idle"), 4000);
       }
     } catch (error) {
-      setStatus("aborted");
+      if (error.message === 'Sorting aborted') {
+        setStatus("aborted");
+        // Restore original data state after abort
+        const currentData = barAnimatorRef.current?.getCurrentData() || sampleData;
+        setSampleData([...currentData]);
+      }
       setTimeout(() => setStatus("idle"), 4000);
     }
   };
@@ -55,8 +65,10 @@ export default function Home() {
   const handleAbort = () => {
     if (barAnimatorRef.current) {
       barAnimatorRef.current.abort();
-      setStatus("aborted");
-      setTimeout(() => setStatus("idle"), 4000);
+      // Keep status as 'sorting' until abort completes
+      const currentData = barAnimatorRef.current.getCurrentData();
+      setSampleData([...currentData]);
+      // Let the natural state transition handle the status change
     }
   };
 
@@ -97,6 +109,28 @@ export default function Home() {
         arr[j + 1] = current;
       }
       return arr;
+    }`,
+    quickSort: `function quickSort(arr, low = 0, high = arr.length - 1) {
+      if (low < high) {
+        const pivotIndex = partition(arr, low, high);
+        quickSort(arr, low, pivotIndex - 1);
+        quickSort(arr, pivotIndex + 1, high);
+      }
+      return arr;
+    }
+
+    function partition(arr, low, high) {
+      const pivot = arr[high];
+      let i = low - 1;
+      
+      for (let j = low; j < high; j++) {
+        if (arr[j] <= pivot) {
+          i++;
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      [arr[i+1], arr[high]] = [arr[high], arr[i+1]];
+      return i + 1;
     }`
   };
 

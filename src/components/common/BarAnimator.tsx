@@ -13,13 +13,14 @@ interface BarData {
 interface BarAnimatorProps {
   data: number[];
   speed: number;
-  selectedAlgorithm: 'bubbleSort' | 'selectionSort' | 'insertionSort';
+  selectedAlgorithm: 'bubbleSort' | 'selectionSort' | 'insertionSort' | 'quickSort';
 }
 
 export interface BarAnimatorHandles {
   shuffle: (type: ShuffleType) => Promise<void>;
   bubbleSort: () => Promise<void>;
   selectionSort: () => Promise<void>;
+  quickSort: () => Promise<void>;
   abort: () => void;
   getCurrentData: () => number[];
 }
@@ -54,6 +55,7 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
   const [swappingIds, setSwappingIds] = useState<string[]>([]);
   const [isSorting, setIsSorting] = useState(false);
   const [currentIndices, setCurrentIndices] = useState<number[]>([]);
+  const [partitionBoundaries, setPartitionBoundaries] = useState<number[]>([]);
   const isMounted = useRef(true);
   const currentDataRef = useRef(currentData);
   const prevDataRef = useRef<BarData[]>([]);
@@ -108,6 +110,9 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
             throw new Error('Sorting aborted');
           }
           
+          // Add additional abort check before each comparison
+          if (!isMounted.current) break;
+          
           // Set both indices as compared pair
           setCurrentIndices([i, i + 1]);
           await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
@@ -139,6 +144,7 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
         setCurrentIndices([]);
       }
       setIsAnimating(false);
+      isMounted.current = true;  // Reset mount state for next sort
     }
   }, [speed, currentData]);
 
@@ -160,7 +166,9 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
         await new Promise(resolve => setTimeout(resolve, 500 / currentSpeed));
 
         for (let j = i + 1; j < n; j++) {
-          if (!isMounted.current) break; // Check abort during inner loop
+          if (!isMounted.current) {
+            throw new Error('Sorting aborted');
+          }
           
           // Highlight comparison indices and current minimum
           setCurrentIndices([i, j, minIndex]);
@@ -210,6 +218,114 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
     }
   }, [speed, currentData]);
 
+  const quickSort = useCallback(async () => {
+    setIsAnimating(true);
+    try {
+      isMounted.current = true;
+      const currentSpeed = speed;
+      setIsSorting(true);
+      let dataCopy = [...currentData];
+      const stack: [number, number][] = [[0, dataCopy.length - 1]];
+      setCurrentIndices([]);
+      setPartitionBoundaries([]);
+
+      // Add initial abort check
+      if (!isMounted.current) return;
+      
+      while (stack.length > 0 && isMounted.current) {
+        const [low, high] = stack.pop()!;
+        // Add abort check before processing partition
+        if (!isMounted.current) break;
+        setPartitionBoundaries([low, high]);
+        
+        // Handle small partitions with simple sort
+        if (high - low + 1 < 4) {
+          await bubbleSortPartition(dataCopy, low, high, currentSpeed);
+          continue;
+        }
+
+        // Select pivot and visualize selection
+        const pivotValue = dataCopy[high].value;
+        setCurrentIndices([high]);
+        await new Promise(resolve => setTimeout(resolve, 800 / currentSpeed));
+
+        let i = low - 1;
+        setPartitionBoundaries([low, high]);
+        
+        for (let j = low; j < high; j++) {
+          if (!isMounted.current) {
+            throw new Error('Sorting aborted');
+          }
+          
+          // Visualize comparison and partition progress
+          setCurrentIndices([j, high, i >= low ? i : -1]);
+          await new Promise(resolve => setTimeout(resolve, 400 / currentSpeed));
+
+          if (dataCopy[j].value <= pivotValue) {
+            i++;
+            
+            if (i !== j) {
+              setSwappingIds([dataCopy[i].id, dataCopy[j].id]);
+              [dataCopy[i], dataCopy[j]] = [dataCopy[j], dataCopy[i]];
+              setCurrentData([...dataCopy]);
+              await new Promise(resolve => setTimeout(resolve, 1000 / currentSpeed));
+              setSwappingIds([]);
+            }
+            
+            // Visualize partition growth
+            setCurrentIndices([...currentIndices, i]);
+          }
+        }
+
+        // Animate final pivot placement
+        const pivotIndex = i + 1;
+        setSwappingIds([dataCopy[pivotIndex].id, dataCopy[high].id]);
+        [dataCopy[pivotIndex], dataCopy[high]] = [dataCopy[high], dataCopy[pivotIndex]];
+        setCurrentData([...dataCopy]);
+        
+        // Extra emphasis for pivot placement
+        await new Promise(resolve => setTimeout(resolve, 1200 / currentSpeed));
+        setCurrentIndices([pivotIndex]);
+        await new Promise(resolve => setTimeout(resolve, 600 / currentSpeed));
+        setSwappingIds([]);
+
+        // Queue partitions with visual delay
+        await new Promise(resolve => setTimeout(resolve, 300 / currentSpeed));
+        stack.push([pivotIndex + 1, high]);
+        stack.push([low, pivotIndex - 1]);
+      }
+
+      if (isMounted.current) {
+        setCurrentIndices(Array.from({length: dataCopy.length}, (_, i) => i));
+      }
+    } finally {
+      if (isMounted.current) {
+        setIsSorting(false);
+        setCurrentIndices([]);
+        setPartitionBoundaries([]);
+      }
+      setIsAnimating(false);
+    }
+  }, [speed, currentData]);
+
+  // Helper for small partition sorting
+  const bubbleSortPartition = async (arr: BarData[], low: number, high: number, speed: number) => {
+    for (let i = low; i <= high; i++) {
+      for (let j = low; j < high - (i - low); j++) {
+        setCurrentIndices([j, j + 1]);
+        await new Promise(resolve => setTimeout(resolve, 500 / speed));
+
+        if (arr[j].value > arr[j + 1].value) {
+          setSwappingIds([arr[j].id, arr[j + 1].id]);
+          [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
+          setCurrentData([...arr]);
+          await new Promise(resolve => setTimeout(resolve, 800 / speed));
+          setSwappingIds([]);
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -251,13 +367,16 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
     },
     bubbleSort,
     selectionSort,
+    quickSort,
     abort: () => {
       isMounted.current = false;
+      setIsAnimating(false);  // Add this to immediately stop animations
       setCurrentIndices([]);
       setSwappingIds([]);
+      setPartitionBoundaries([]);  // Clear quick sort boundaries
     },
     getCurrentData: () => currentDataRef.current.map(d => d.value)
-  }), [bubbleSort, selectionSort]);
+  }), [bubbleSort, selectionSort, quickSort]);
 
   // Add reduced motion support
   const shouldReduceMotion = useReducedMotion();
@@ -385,6 +504,7 @@ const BarAnimator = forwardRef<BarAnimatorHandles, BarAnimatorProps>(({
               currentIndices={currentIndices}
               index={index}
               algorithm={selectedAlgorithm}
+              partitionBoundaries={partitionBoundaries}
             />
           );
         })}

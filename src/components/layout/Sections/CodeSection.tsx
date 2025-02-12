@@ -8,14 +8,15 @@ interface CodeSectionProps {
   codeSnippets: {
     bubbleSort: string;
     selectionSort: string;
-    insertionSort: string;
+    quickSort: string;
   };
   currentLine?: number;
-  selectedAlgorithm: keyof CodeSectionProps['codeSnippets'];
+  selectedAlgorithm: 'bubbleSort' | 'selectionSort' | 'quickSort';
   onAlgorithmChange: (algorithm: keyof CodeSectionProps['codeSnippets']) => void;
+  status: 'idle' | 'sorting' | 'aborted';
 }
 
-export default function CodeSection({ codeSnippets, currentLine, selectedAlgorithm, onAlgorithmChange }: CodeSectionProps) {
+export default function CodeSection({ codeSnippets, currentLine, selectedAlgorithm, onAlgorithmChange, status }: CodeSectionProps) {
   const parsedCode = parseCode(codeSnippets[selectedAlgorithm]);
 
   return (
@@ -30,24 +31,29 @@ export default function CodeSection({ codeSnippets, currentLine, selectedAlgorit
         value={selectedAlgorithm as string}
         onValueChange={(value) => onAlgorithmChange(value as keyof CodeSectionProps['codeSnippets'])}
       >
-        <TabsList className="bg-gray-100 p-1.5 h-auto mb-4">
+        <TabsList 
+          className="bg-gray-100 p-1.5 h-auto mb-4"
+        >
           <TabsTrigger 
             value="bubbleSort" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 text-sm"
+            disabled={status === 'sorting'}
           >
             Bubble Sort
           </TabsTrigger>
           <TabsTrigger 
             value="selectionSort" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 text-sm"
+            disabled={status === 'sorting'}
           >
             Selection Sort
           </TabsTrigger>
           <TabsTrigger 
-            value="insertionSort" 
+            value="quickSort" 
             className="data-[state=active]:bg-white data-[state=active]:shadow-sm px-3 py-1.5 text-sm"
+            disabled={status === 'sorting'}
           >
-            Insertion Sort
+            Quick Sort
           </TabsTrigger>
         </TabsList>
         

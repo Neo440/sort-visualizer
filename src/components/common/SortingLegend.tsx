@@ -19,6 +19,13 @@ const legendConfig = {
     { color: 'bg-indigo-400', label: 'Current Element' },
     { color: 'bg-rose-400', label: 'Comparison' },
     { color: 'bg-emerald-400', label: 'Shifting' }
+  ],
+  quickSort: [
+    { color: 'bg-indigo-400', label: 'Pivot Element' },
+    { color: 'bg-purple-400', label: 'Partition Area' },
+    { color: 'bg-rose-400', label: 'Comparison' },
+    { color: 'bg-emerald-400', label: 'Swapping' },
+    { color: 'bg-amber-400', label: 'Boundary' }
   ]
 };
 

@@ -115,7 +115,7 @@ export default function ControlBoard({
                 variant={numElements === size ? 'default' : 'secondary'}
                 className="flex-1"
                 onClick={() => onNumElementsChange(size)}
-                disabled={status === 'sorting' as StatusType}
+                disabled={status === 'sorting'}
               >
                 {size}
               </Button>
@@ -134,7 +134,7 @@ export default function ControlBoard({
             value={[speed]}
             onValueChange={(v) => onSpeedChange(v[0])}
             className="[&_[role=slider]]:h-10 [&_[role=slider]]:w-2 py-4"
-            disabled={status === 'sorting' as StatusType}
+            disabled={status === 'sorting'}
           />
         </div>
 
@@ -143,7 +143,7 @@ export default function ControlBoard({
             onClick={() => onShuffle('random')}
             variant="outline"
             className="gap-2 hover:bg-gray-50"
-            disabled={status === 'sorting' as StatusType}
+            disabled={status === 'sorting'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -155,7 +155,7 @@ export default function ControlBoard({
             onClick={() => onShuffle('reversed')}
             variant="outline"
             className="gap-2 hover:bg-gray-50"
-            disabled={status === 'sorting' as StatusType}
+            disabled={status === 'sorting'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
@@ -167,7 +167,7 @@ export default function ControlBoard({
             onClick={() => onShuffle('nearly-sorted')}
             variant="outline"
             className="gap-2 hover:bg-gray-50"
-            disabled={status === 'sorting' as StatusType}
+            disabled={status === 'sorting'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5h7m-7 7h7m-7 7h7M4 8h1.5m0 0H6m-1.5 0V6m0 2v2M4 16h1.5m0 0H6m-1.5 0V14m0 2v2" />
@@ -179,7 +179,7 @@ export default function ControlBoard({
             onClick={() => onShuffle('few-unique')}
             variant="outline"
             className="gap-2 hover:bg-gray-50"
-            disabled={status === 'sorting' as StatusType}
+            disabled={status === 'sorting'}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -188,64 +188,30 @@ export default function ControlBoard({
           </Button>
         </div>
         <div className='flex gap-2'>
-          <AnimatePresence mode='popLayout'>
-            {status !== 'sorting' ? (
-              <motion.div
-                key="sort-btn"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="w-full"
-              >
-        <Button 
-          onClick={onSort} 
-          className="gap-2 w-full hover:bg-gray-600 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Start Sort
-        </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="abort-container"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-                className="flex gap-2 w-full"
-              >
-                <Button 
-                  onClick={onSort} 
-                  className="gap-2 w-full hover:bg-gray-600 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Sorting...
-                </Button>
-                
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.15, ease: 'easeOut' }}
-                  className="flex-shrink-0"
-                >
-        <Button 
-          onClick={onAbort} 
-          variant="destructive" 
-                    size="icon"
-                    className="hover:bg-red-700 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </Button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <motion.div className="flex gap-2 w-full">
+            <Button 
+              onClick={onSort} 
+              className="gap-2 w-full hover:bg-gray-600 transition-colors"
+              disabled={status === 'sorting'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              {status === 'sorting' ? 'Sorting...' : 'Start Sort'}
+            </Button>
+            
+            <Button 
+              onClick={onAbort} 
+              variant="destructive" 
+              size="icon"
+              className="hover:bg-red-700 transition-colors"
+              disabled={status !== 'sorting'}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </Button>
+          </motion.div>
         </div>
       </div>
     </div>
